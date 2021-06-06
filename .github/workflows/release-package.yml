@@ -15,8 +15,8 @@ jobs:
         uses: thatisuday/go-cross-build@v1
         with:
           platforms: "linux/amd64, windows/amd64"
-          package: "demo"
-          name: "program"
+          package: "main"
+          name: "gam"
           compress: "true"
           dest: "dist"
 
@@ -29,4 +29,4 @@ jobs:
           prerelease: false
           automatic_release_tag: ${{ env.RELEASE_VERSION }}
           files: |
-            gam.exe
+            gam
