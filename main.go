@@ -33,7 +33,7 @@ func installApplication(x string) {
 	body, err := io.ReadAll(resp.Body)
 	//fmt.Println(body)
 	// bodyString := string(body)
-	// fmt.Println(bodyString)
+	// fmt.Println(bodyString) s
 
 	var users []Release
 	json.Unmarshal(body, &users)
