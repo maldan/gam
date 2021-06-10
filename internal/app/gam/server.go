@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mime/multipart"
 
+	"github.com/maldan/gam/internal/app/gam/api"
 	"github.com/maldan/gam/internal/app/rest_server"
 )
 
@@ -17,12 +18,12 @@ type SasageoArgs struct {
 	Fuck bool
 }
 
-func post_sasageo(args SasageoArgs) string {
+func post_run(args SasageoArgs) string {
 	fmt.Println("files", args.Files)
 	return args.Name
 }
 
-func get_sasageo(args SasageoArgs) string {
+/*func get_sasageo(args SasageoArgs) string {
 	return "SAs"
 }
 
@@ -35,14 +36,12 @@ func get_konodioda(args SasageoArgs) map[string]string {
 		"a": "b",
 		"c": "x",
 	}
-}
+}*/
 
-func start() {
+func server_start(addr string) {
 	controller := map[string]interface{}{
-		"post_sasageo":  post_sasageo,
-		"get_sasageo":   get_sasageo,
-		"get_gagaseo":   get_gagaseo,
-		"get_konodioda": get_konodioda,
+		"user":        new(api.UserApi),
+		"application": new(api.ApplicationApi),
 	}
-	rest_server.Start("127.0.0.1:8080", controller)
+	rest_server.Start(addr, controller)
 }

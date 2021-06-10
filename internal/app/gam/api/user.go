@@ -2,12 +2,20 @@ package api
 
 import "fmt"
 
-func Fuck(p map[string]interface{}) {
-	fmt.Println("S")
+type UserApi int
+
+type SasageoArgs struct {
+	Names []interface{}
 }
 
-func Sasageo() map[string]func(map[string]interface{}) {
-	return map[string]func(map[string]interface{}){
-		"s": Fuck,
-	}
+func (u UserApi) PostFuck(args SasageoArgs) []string {
+	fmt.Println(args.Names[0])
+
+	return []string{"x", "b"}
+}
+
+func (u UserApi) GetList(args SasageoArgs) []string {
+	fmt.Println(args.Names)
+
+	return []string{"x", "b"}
 }

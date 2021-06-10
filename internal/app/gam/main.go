@@ -44,12 +44,6 @@ func main() {
 	os.MkdirAll(GamAppDir, os.ModeDir)
 	fmt.Println(GamAppDir)
 
-	/*bar := progressbar.Default(100)
-	for i := 0; i < 1; i++ {
-		bar.Add(2)
-		time.Sleep(20 * time.Millisecond)
-	}*/
-
 	// Get args
 	argsWithoutProg := os.Args[1:]
 
@@ -57,10 +51,18 @@ func main() {
 	switch argsWithoutProg[0] {
 	case "install":
 		shell_install(argsWithoutProg[1])
-	case "start":
-		fmt.Println("FUCK")
-	case "stop":
-		fmt.Println("FUCK")
+	case "service":
+		switch argsWithoutProg[1] {
+		case "daemon":
+			server_start("127.0.0.1:14393")
+		default:
+		}
+	case "process":
+		switch argsWithoutProg[1] {
+		case "list":
+			fmt.Println("SAS")
+		default:
+		}
 	case "run":
 		fmt.Println("FUCK")
 	default:
@@ -74,18 +76,4 @@ func main() {
 	}
 	fmt.Println("> date")
 	fmt.Println(string(dateOut))*/
-
-	/*myData := map[string]interface{}{
-		"Name": "Tony",
-		//"Age":  "fuck",
-		//"Fuck": true,
-		//"Sex":  23,
-	}
-	var result MyStruct
-	transcode(myData, &result)
-	fmt.Printf("%+v\n", result)*/
-
-	// sss
-
-	start()
 }
