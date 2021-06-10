@@ -29,7 +29,7 @@ func shell_unzip(source, dest string) error {
 			return err
 		}
 		name := path.Join(dest, file.Name)
-		os.MkdirAll(path.Dir(name), os.ModeDir)
+		os.MkdirAll(path.Dir(name), 0755)
 		create, err := os.Create(name)
 		if err != nil {
 			return err
