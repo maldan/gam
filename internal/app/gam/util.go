@@ -1,7 +1,7 @@
-package main
+package gam
 
 import "strings"
 
-func application_convertName(url string) string {
+func convertAppName(url string) string {
 	return strings.ReplaceAll(url, "/", "-")
 }

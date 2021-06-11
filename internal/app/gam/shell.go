@@ -1,16 +1,30 @@
-package main
+package gam
 
 import (
 	"archive/zip"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 
 	"github.com/schollz/progressbar/v3"
+	"golang.org/x/mod/semver"
 )
+
+func shell_run(url string) {
+	// Convert name
+	appName := convertAppName(url)
+	dateCmd := exec.Command(GamAppDir+"/"+appName+"/app.exe", "--port=58123")
+	dateCmd.Dir = GamAppDir + "/" + appName
+	err := dateCmd.Start()
+	if err != nil {
+		panic(err)
+	}
+}
 
 func shell_unzip(source, dest string) error {
 	read, err := zip.OpenReader(source)
@@ -37,18 +51,31 @@ func shell_unzip(source, dest string) error {
 		defer create.Close()
 		create.ReadFrom(open)
 	}
+	fmt.Println("Unpacked to " + dest)
 	return nil
+}
+
+func gam_upgrade(path string) {
+	killDaemon()
+
+	d1 := []byte("timeout 2\ngam.exe init")
+	err := ioutil.WriteFile(path+"/upgrade.cmd", d1, 0777)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	cmd := exec.Command(path + "/upgrade.cmd")
+	err = cmd.Start()
+	if err != nil {
+		fmt.Println("Can't update gam")
+	}
 }
 
 func shell_download(url string, appName string) {
 	// Open file
 	f, _ := os.OpenFile(GamAppDir+"/"+appName+".zip", os.O_CREATE|os.O_WRONLY, 0644)
 
-	// Check exists
-	/*if !os.IsNotExist(err) {
-		shell_unzip(GamAppDir+"/"+appName+".zip", GamAppDir+"/application")
-		return
-	}*/
 	defer f.Close()
 
 	req, _ := http.NewRequest("GET", url, nil)
@@ -64,9 +91,54 @@ func shell_download(url string, appName string) {
 	shell_unzip(GamAppDir+"/"+appName+".zip", GamAppDir+"/"+appName)
 }
 
+func shell_upgrade() {
+	// Get release list
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", "https://api.github.com/repos/maldan/gam/releases", nil)
+	req.Header.Set("Authorization", "token "+Config.GithubAccessToken)
+	resp, err := client.Do(req)
+	if err != nil {
+		ErrorMessage("Can't get release list")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		ErrorMessage("App not found")
+	}
+
+	// Parse json
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		ErrorMessage("App not found")
+	}
+	var releaseList []Release
+	json.Unmarshal(body, &releaseList)
+
+	// Search release
+	for _, release := range releaseList {
+		if semver.Compare(release.TagName, Config.Version) <= 0 {
+			continue
+		}
+
+		for _, asset := range release.Assets {
+			if "application-"+CurrentPlatform+".zip" == asset.Name {
+				fmt.Println("Found new version", release.TagName)
+				shell_download(asset.DownloadUrl, "maldan-gam-"+release.TagName)
+				gam_upgrade(GamAppDir + "/" + "maldan-gam-" + release.TagName)
+				return
+			}
+		}
+	}
+
+	fmt.Println("New version not found")
+}
+
 func shell_install(url string) {
 	// Get release list
-	resp, err := http.Get("https://api.github.com/repos/" + url + "/releases")
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", "https://api.github.com/repos/"+url+"/releases", nil)
+	req.Header.Set("Authorization", "token "+Config.GithubAccessToken)
+	resp, err := client.Do(req)
 	if err != nil {
 		ErrorMessage("Can't get release list")
 	}
@@ -77,7 +149,7 @@ func shell_install(url string) {
 	}
 
 	// Convert name
-	appName := application_convertName(url)
+	appName := convertAppName(url)
 
 	// Parse json
 	body, err := io.ReadAll(resp.Body)
@@ -90,7 +162,6 @@ func shell_install(url string) {
 	// Search release
 	for _, release := range releaseList {
 		for _, asset := range release.Assets {
-			//if asset.Name == "application.zip" {
 			if "application-"+CurrentPlatform+".zip" == asset.Name {
 				fmt.Println("Found")
 				appName += "-" + release.TagName
@@ -100,19 +171,6 @@ func shell_install(url string) {
 			}
 		}
 	}
-	// fmt.Println(string(body))
 
-	// Create a buffer to write our archive to.
-	/*buf := new(bytes.Buffer)
-
-	// Create a new zip archive.
-	w := zip.NewWriter(buf)
-
-	// Register a custom Deflate compressor.
-	w.RegisterCompressor(zip.Deflate, func(out io.Writer) (io.WriteCloser, error) {
-		return flate.NewWriter(out, flate.BestCompression)
-	})
-
-	fType := reflect.TypeOf(users)
-	fmt.Println(fType)*/
+	fmt.Println("Asset not found")
 }

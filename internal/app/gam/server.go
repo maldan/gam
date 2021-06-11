@@ -1,4 +1,4 @@
-package main
+package gam
 
 import (
 	"mime/multipart"
