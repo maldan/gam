@@ -51,7 +51,7 @@ func killProcess(pid int) {
 	cmd.Stdout = &out
 	err := cmd.Start()
 	if err == nil {
-		fmt.Println("Daemon stopped")
+		fmt.Println("Daemon stopped") //
 	}
 }
 
