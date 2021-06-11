@@ -96,7 +96,6 @@ func shell_upgrade() {
 	// Get release list
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", "https://api.github.com/repos/maldan/gam/releases", nil)
-	req.Header.Set("Authorization", "token "+Config.GithubAccessToken)
 	resp, err := client.Do(req)
 	if err != nil {
 		ErrorMessage("Can't get release list")
@@ -138,7 +137,10 @@ func shell_install(url string) {
 	// Get release list
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", "https://api.github.com/repos/"+url+"/releases", nil)
-	req.Header.Set("Authorization", "token "+Config.GithubAccessToken)
+	if Config.GithubAccessToken != "" {
+		req.Header.Set("Authorization", "token "+Config.GithubAccessToken)
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		ErrorMessage("Can't get release list")
