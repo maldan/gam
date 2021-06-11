@@ -1,11 +1,14 @@
-package main
+package gam
 
-import "runtime"
+import (
+	"runtime"
+)
 
 const CurrentPlatform = runtime.GOOS + "-" + runtime.GOARCH
 
 var GamDir string
 var GamAppDir string
+var Config GamConfig
 
 type ReleaseList struct {
 	ReleaseList []Release `json:"users"`
@@ -21,4 +24,9 @@ type Asset struct {
 	Name        string `json:"name"`
 	Url         string `json:"url"`
 	DownloadUrl string `json:"browser_download_url"`
+}
+
+type GamConfig struct {
+	Version           string
+	GithubAccessToken string `json:"GITHUB_ACCESS_TOKEN"`
 }

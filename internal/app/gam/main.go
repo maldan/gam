@@ -1,6 +1,7 @@
-package main
+package gam
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -8,20 +9,36 @@ import (
 	"os"
 	"runtime"
 	"strings"
-
-	"github.com/mitchellh/go-ps"
 )
 
 // Ssageo
 func ErrorMessage(message string) {
-	panic(message)
+	fmt.Println(message)
+	os.Exit(1)
 }
 
-func main() {
-	pll, _ := ps.Processes()
-	for _, v := range pll {
-		fmt.Printf("%v\n", v.Executable())
+func loadConfig() {
+	f, err := os.Open("config.json")
+	if err != nil {
+		return
 	}
+	defer f.Close()
+
+	decoder := json.NewDecoder(f)
+	err = decoder.Decode(&Config)
+	if err != nil {
+		return
+	}
+}
+
+func init() {
+	// Prepare
+	loadConfig()
+}
+
+func Start(version string) {
+	// Set version
+	Config.Version = "v" + version
 
 	// Get home dir and set app dir
 	dirname, err := os.UserHomeDir()
@@ -40,7 +57,7 @@ func main() {
 		panic("Unsupported platform")
 	}
 
-	fmt.Println("Current platform: ", CurrentPlatform)
+	// fmt.Println("Current platform: ", CurrentPlatform)
 
 	// Create folders
 	os.MkdirAll(GamDir, 0755)
@@ -84,13 +101,25 @@ func main() {
 		switch argsWithoutProg[1] {
 		case "daemon":
 			server_start("127.0.0.1:14393")
+		case "kill":
+			killDaemon()
 		}
+
 	case "process":
 		switch argsWithoutProg[1] {
 		case "list":
-			fmt.Println("SAS")
+			pl := processList()
+			for _, p := range pl {
+				if p.Name == "app.exe" && strings.Contains(strings.ReplaceAll(p.Cmd, "\\", "/"), GamAppDir) {
+					fmt.Println(p)
+				}
+			}
 		}
+	case "upgrade":
+		shell_upgrade()
+	case "version":
+		fmt.Printf("%v", version)
 	case "run":
-		fmt.Println("FUCK")
+		shell_run(argsWithoutProg[1])
 	}
 }

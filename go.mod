@@ -12,5 +12,6 @@ require (
 	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/schollz/progressbar/v3 v3.8.1
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a // indirect
+	golang.org/x/mod v0.4.2
 	golang.org/x/sys v0.0.0-20210603125802-9665404d3644 // indirect
 )
