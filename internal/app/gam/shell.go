@@ -66,6 +66,7 @@ func gam_upgrade(path string) {
 	}
 
 	cmd := exec.Command(path + "/upgrade.cmd")
+	cmd.Dir = path
 	err = cmd.Start()
 	if err != nil {
 		fmt.Println("Can't update gam")
