@@ -38,6 +38,11 @@ func main() {
 	os.MkdirAll(GamDir, 0755)
 	os.MkdirAll(GamAppDir, 0755)
 
+	if len(os.Args) <= 1 {
+		fmt.Println("No params")
+		return
+	}
+
 	// Get args
 	argsWithoutProg := os.Args[1:]
 

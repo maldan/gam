@@ -90,9 +90,9 @@ func shell_install(url string) {
 	// Search release
 	for _, release := range releaseList {
 		for _, asset := range release.Assets {
-			if asset.Name == "application.zip" {
-				// if "application-"+CurrentPlatform+".zip" == asset.Name {
-				// fmt.Println("Found")
+			//if asset.Name == "application.zip" {
+			if "application-"+CurrentPlatform+".zip" == asset.Name {
+				fmt.Println("Found")
 				appName += "-" + release.TagName
 				fmt.Println(appName)
 				shell_download(asset.DownloadUrl, appName)
