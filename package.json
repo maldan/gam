@@ -1,0 +1,17 @@
+{
+  "name": "gam",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maldan/gam.git"
+  },
+  "keywords": [],
+  "author": "Maldan",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/maldan/gam/issues"
+  },
+  "homepage": "https://github.com/maldan/gam#readme"
+}

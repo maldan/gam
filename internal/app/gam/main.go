@@ -8,13 +8,21 @@ import (
 	"os"
 	"runtime"
 	"strings"
+
+	"github.com/mitchellh/go-ps"
 )
 
+// Ssageo
 func ErrorMessage(message string) {
 	panic(message)
 }
 
 func main() {
+	pll, _ := ps.Processes()
+	for _, v := range pll {
+		fmt.Printf("%v\n", v.Executable())
+	}
+
 	// Get home dir and set app dir
 	dirname, err := os.UserHomeDir()
 	if err != nil {
