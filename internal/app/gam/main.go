@@ -5,63 +5,17 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"runtime"
-	"strings"
+	"strconv"
+
+	"github.com/fatih/color"
+	"github.com/k0kubun/pp"
 )
-
-// Ssageo
-func ErrorMessage(message string) {
-	fmt.Println(message)
-	os.Exit(1)
-}
-
-func loadConfig() {
-	f, err := os.Open("config.json")
-	if err != nil {
-		return
-	}
-	defer f.Close()
-
-	decoder := json.NewDecoder(f)
-	err = decoder.Decode(&Config)
-	if err != nil {
-		return
-	}
-}
-
-func init() {
-	// Prepare
-	loadConfig()
-}
 
 func Start(version string) {
 	// Set version
 	Config.Version = "v" + version
-
-	// Get home dir and set app dir
-	dirname, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal(err)
-	}
-	GamAppDir = strings.ReplaceAll(dirname, "\\", "/") + "/.gam-app"
-
-	// Set gam dir
-	switch runtime.GOOS {
-	case "windows":
-		GamDir = strings.ReplaceAll(dirname, "\\", "/") + "/.gam"
-	case "linux":
-		GamDir = strings.ReplaceAll(dirname, "\\", "/") + "/.gam"
-	default:
-		panic("Unsupported platform")
-	}
-
-	// fmt.Println("Current platform: ", CurrentPlatform)
-
-	// Create folders
-	os.MkdirAll(GamDir, 0755)
-	os.MkdirAll(GamAppDir, 0755)
 
 	if len(os.Args) <= 1 {
 		fmt.Println("No params")
@@ -96,30 +50,69 @@ func Start(version string) {
 			ioutil.WriteFile("/usr/local/bin/gam", d1, 0755)
 		}
 	case "install":
-		shell_install(argsWithoutProg[1])
+		app_install(argsWithoutProg[1])
+	case "update":
+		app_install(argsWithoutProg[1])
+		app_clean(argsWithoutProg[1])
 	case "service":
 		switch argsWithoutProg[1] {
 		case "daemon":
-			server_start("127.0.0.1:14393")
+			daemon_start()
 		case "kill":
-			killDaemon()
+			process_killDaemon()
 		}
-
+	case "app":
+		switch argsWithoutProg[1] {
+		case "list":
+			app_list()
+		case "clean":
+			app_clean(argsWithoutProg[2])
+		}
 	case "process":
 		switch argsWithoutProg[1] {
 		case "list":
-			pl := processList()
-			for _, p := range pl {
-				if p.Name == "app.exe" && strings.Contains(strings.ReplaceAll(p.Cmd, "\\", "/"), GamAppDir) {
-					fmt.Println(p)
+			pl := process_gamList()
+
+			if Format == "json" {
+				r, _ := json.Marshal(pl)
+				fmt.Println(string(r))
+			} else {
+				for _, p := range pl {
+					pp.Println(p)
 				}
+			}
+
+		case "kill":
+			if argsWithoutProg[2] == "all" {
+				process_killAllGamList()
+			} else {
+				pid, _ := strconv.Atoi(argsWithoutProg[2])
+				process_kill(pid)
 			}
 		}
 	case "upgrade":
-		shell_upgrade()
+		app_upgrade()
 	case "version":
 		fmt.Printf("%v", version)
 	case "run":
-		shell_run(argsWithoutProg[1])
+		app_run(argsWithoutProg[1], argsWithoutProg[2:])
+	case "help":
+		commands := map[string]string{
+			"init":              "Install and init gam",
+			"install $url":      "Download and install app frop gihtub",
+			"run $url":          "Run app",
+			"process list":      "Show running gam applications",
+			"process kill $pid": "Kill process by pid",
+			"process kill all":  "Kill all running gam applications",
+			"version":           "Show current gam version",
+			"upgrade":           "Install and download new gam version",
+		}
+
+		for k, v := range commands {
+			color.Green(k)
+			fmt.Println(" - " + v)
+		}
+	default:
+		fmt.Println("Unknown command")
 	}
 }

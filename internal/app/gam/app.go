@@ -5,28 +5,94 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
+	"sort"
+	"strings"
 
+	"github.com/maldan/go-cmhp"
 	"github.com/schollz/progressbar/v3"
 	"golang.org/x/mod/semver"
 )
 
-func shell_run(url string) {
-	// Convert name
-	appName := convertAppName(url)
-	dateCmd := exec.Command(GamAppDir+"/"+appName+"/app.exe", "--port=58123")
-	dateCmd.Dir = GamAppDir + "/" + appName
-	err := dateCmd.Start()
+func app_folder(prefix string) string {
+	files, err := ioutil.ReadDir(GamAppDir)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
+	}
+
+	finalFiles := make([]fs.FileInfo, 0)
+
+	for _, file := range files {
+		if !file.IsDir() {
+			continue
+		}
+
+		if !strings.HasPrefix(file.Name(), prefix) {
+			continue
+		}
+
+		finalFiles = append(finalFiles, file)
+	}
+
+	sort.Slice(finalFiles, func(i, j int) bool {
+		a := strings.Replace(finalFiles[i].Name(), prefix+"-", "", 1)
+		b := strings.Replace(finalFiles[j].Name(), prefix+"-", "", 1)
+		return semver.Compare(a, b) > 0
+	})
+
+	if len(finalFiles) <= 0 {
+		return ""
+	}
+
+	return finalFiles[0].Name()
+}
+
+func app_name(url string) string {
+	return strings.ReplaceAll(url, "/", "-")
+}
+
+func app_name_without_version(name string) string {
+	var re = regexp.MustCompile(`-v\d+\.\d+\.\d+`)
+	return re.ReplaceAllString(name, `$1`)
+}
+
+func app_list() {
+	files, err := ioutil.ReadDir(GamAppDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	appList := make([]Application, 0)
+
+	for _, file := range files {
+		if !file.IsDir() {
+			continue
+		}
+
+		appList = append(appList, Application{
+			Name: file.Name(),
+			Path: fmt.Sprintf("%v/%v", GamAppDir, file.Name()),
+		})
+	}
+
+	if Format == "json" {
+		s, _ := json.Marshal(appList)
+		fmt.Println(string(s))
+	} else {
+		for _, file := range appList {
+			fmt.Println(file.Name)
+		}
 	}
 }
 
-func shell_unzip(source, dest string) error {
+func app_unzip(source, dest string) error {
 	read, err := zip.OpenReader(source)
 	if err != nil {
 		fmt.Println("Can't open zip")
@@ -56,7 +122,7 @@ func shell_unzip(source, dest string) error {
 }
 
 func gam_upgrade(path string) {
-	killDaemon()
+	process_killDaemon()
 
 	d1 := []byte("timeout 2\ngam.exe init")
 	err := ioutil.WriteFile(path+"/upgrade.cmd", d1, 0777)
@@ -73,10 +139,9 @@ func gam_upgrade(path string) {
 	}
 }
 
-func shell_download(url string, appName string) {
+func app_download(url string, appName string) {
 	// Open file
 	f, _ := os.OpenFile(GamAppDir+"/"+appName+".zip", os.O_CREATE|os.O_WRONLY, 0644)
-
 	defer f.Close()
 
 	req, _ := http.NewRequest("GET", url, nil)
@@ -89,10 +154,10 @@ func shell_download(url string, appName string) {
 	)
 	io.Copy(io.MultiWriter(f, bar), resp.Body)
 
-	shell_unzip(GamAppDir+"/"+appName+".zip", GamAppDir+"/"+appName)
+	app_unzip(GamAppDir+"/"+appName+".zip", GamAppDir+"/"+appName)
 }
 
-func shell_upgrade() {
+func app_upgrade() {
 	// Get release list
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", "https://api.github.com/repos/maldan/gam/releases", nil)
@@ -123,7 +188,7 @@ func shell_upgrade() {
 		for _, asset := range release.Assets {
 			if "application-"+CurrentPlatform+".zip" == asset.Name {
 				fmt.Println("Found new version", release.TagName)
-				shell_download(asset.DownloadUrl, "maldan-gam-"+release.TagName)
+				app_download(asset.DownloadUrl, "maldan-gam-"+release.TagName)
 				gam_upgrade(GamAppDir + "/" + "maldan-gam-" + release.TagName)
 				return
 			}
@@ -133,7 +198,38 @@ func shell_upgrade() {
 	fmt.Println("New version not found")
 }
 
-func shell_install(url string) {
+func app_clean(url string) {
+	// Convert name
+	appName := app_name(url)
+	folder := app_folder(appName)
+
+	// Folder
+	if folder == "" {
+		ErrorMessage(fmt.Sprintf("App %v not found", url))
+	}
+
+	files, err := ioutil.ReadDir(GamAppDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+		if !file.IsDir() {
+			continue
+		}
+
+		if !strings.Contains(file.Name(), appName) {
+			continue
+		}
+		if file.Name() == folder {
+			continue
+		}
+		fmt.Printf("Removing %v...\n", GamAppDir+"/"+file.Name())
+		cmhp.DirRemove(GamAppDir + "/" + file.Name())
+	}
+}
+
+func app_install(url string) {
 	// Get release list
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", "https://api.github.com/repos/"+url+"/releases", nil)
@@ -152,7 +248,7 @@ func shell_install(url string) {
 	}
 
 	// Convert name
-	appName := convertAppName(url)
+	appName := app_name(url)
 
 	// Parse json
 	body, err := io.ReadAll(resp.Body)
@@ -169,7 +265,7 @@ func shell_install(url string) {
 				fmt.Println("Found")
 				appName += "-" + release.TagName
 				fmt.Println(appName)
-				shell_download(asset.DownloadUrl, appName)
+				app_download(asset.DownloadUrl, appName)
 				return
 			}
 		}
