@@ -3,12 +3,12 @@ module github.com/maldan/gam
 go 1.16
 
 // replace github.com/maldan/go-restserver => ../../go_lib/restserver
-replace github.com/maldan/go-cmhp => ../../go_lib/cmhp
+// replace github.com/maldan/go-cmhp => ../../go_lib/cmhp
 
 require (
 	github.com/fatih/color v1.12.0 // indirect
 	github.com/k0kubun/pp v3.0.1+incompatible // indirect
-	github.com/maldan/go-cmhp v0.0.2 // indirect
+	github.com/maldan/go-cmhp v0.0.9 // indirect
 	github.com/maldan/go-restserver v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect

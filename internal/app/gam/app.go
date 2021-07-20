@@ -110,6 +110,7 @@ func app_unzip(source, dest string) error {
 		}
 		name := path.Join(dest, file.Name)
 		os.MkdirAll(path.Dir(name), 0755)
+
 		create, err := os.Create(name)
 		if err != nil {
 			return err
@@ -118,6 +119,10 @@ func app_unzip(source, dest string) error {
 		create.ReadFrom(open)
 	}
 	fmt.Println("Unpacked to " + dest)
+	err = os.Chmod(dest+"/app", 0777)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -154,7 +159,10 @@ func app_download(url string, appName string) {
 	)
 	io.Copy(io.MultiWriter(f, bar), resp.Body)
 
-	app_unzip(GamAppDir+"/"+appName+".zip", GamAppDir+"/"+appName)
+	err := app_unzip(GamAppDir+"/"+appName+".zip", GamAppDir+"/"+appName)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func app_upgrade() {
@@ -225,8 +233,22 @@ func app_clean(url string) {
 			continue
 		}
 		fmt.Printf("Removing %v...\n", GamAppDir+"/"+file.Name())
-		cmhp.DirRemove(GamAppDir + "/" + file.Name())
+		cmhp.DirDelete(GamAppDir + "/" + file.Name())
 	}
+}
+
+func app_remove(url string) {
+	// Convert name
+	appName := app_name(url)
+	folder := app_folder(appName)
+
+	// Folder
+	if folder == "" {
+		ErrorMessage(fmt.Sprintf("App %v not found", url))
+	}
+
+	fmt.Printf("Removing %v...\n", folder)
+	cmhp.DirDelete(folder)
 }
 
 func app_install(url string) {

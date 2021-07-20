@@ -51,6 +51,8 @@ func Start(version string) {
 		}
 	case "install":
 		app_install(argsWithoutProg[1])
+	case "remove":
+		app_remove(argsWithoutProg[1])
 	case "update":
 		app_install(argsWithoutProg[1])
 		app_clean(argsWithoutProg[1])
