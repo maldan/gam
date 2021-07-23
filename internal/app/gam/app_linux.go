@@ -45,27 +45,21 @@ func app_run(url string, args []string) {
 	args = append(args, fmt.Sprintf("--appId=%v", app_name_without_version(appName)))
 	argsFinal := append([]string{GamAppDir + "/" + folder + "/app"}, args...)
 
-	sysproc := &syscall.SysProcAttr{
-		Noctty: true,
-	}
-
 	// Set process params
 	logs, _ := os.OpenFile("/var/log/"+appName+"_info.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
 	errors, _ := os.OpenFile("/var/log/"+appName+"_error.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
 
-	attr := os.ProcAttr{
+	// Run process
+	process, err := os.StartProcess(GamAppDir+"/"+folder+"/app", argsFinal, &os.ProcAttr{
 		Dir: GamAppDir + "/" + folder,
 		Env: os.Environ(),
 		Files: []*os.File{
-			os.Stdin,
+			nil,
 			logs,
 			errors,
 		},
-		Sys: sysproc,
-	}
-
-	// Run process
-	process, err := os.StartProcess(GamAppDir+"/"+folder+"/app", argsFinal, &attr)
+		Sys: &syscall.SysProcAttr{},
+	})
 	if err == nil {
 		err = process.Release()
 		if err != nil {
