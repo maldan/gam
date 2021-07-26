@@ -86,6 +86,7 @@ func GamList() []core.Process {
 	return out
 }
 
+// Kill process
 func Kill(input string) {
 	if input == "all" {
 		pl := GamList()
