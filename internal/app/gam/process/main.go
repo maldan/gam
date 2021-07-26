@@ -1,4 +1,4 @@
-package gam
+package process
 
 import (
 	"bytes"
@@ -6,15 +6,18 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/maldan/gam/internal/app/gam/core"
+	"github.com/maldan/go-cmhp/cmhp_process"
 )
 
-func process_list() []Process {
+func List() []core.Process {
 	// Process list
 	cmd := exec.Command("ps", "-aux")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Run()
-	processList := make([]Process, 0)
+	processList := make([]core.Process, 0)
 
 	// Lines
 	lines := strings.Split(out.String(), "\n")
@@ -51,9 +54,12 @@ func process_list() []Process {
 			args[strings.Replace(v2[0], "--", "", 1)] = v2[1]
 		}
 
-		processList = append(processList, Process{
+		// Process list
+		name := strings.Split(strings.Replace(cmd, core.GamAppDir+"/", "", 1), " ")[0]
+		name = strings.Replace(name, "/app", "", 1)
+		processList = append(processList, core.Process{
 			Pid:  pid,
-			Name: strings.Split(strings.Replace(cmd, GamAppDir, "", 1), " ")[0],
+			Name: name,
 			Cmd:  cmd,
 			Args: args,
 		})
@@ -62,10 +68,10 @@ func process_list() []Process {
 	return processList
 }
 
-func process_gamList() []Process {
-	out := make([]Process, 0)
+func GamList() []core.Process {
+	out := make([]core.Process, 0)
 
-	pl := process_list()
+	pl := List()
 	for _, p := range pl {
 		// Skip if go run process
 		if p.Name == "go.exe" {
@@ -80,28 +86,14 @@ func process_gamList() []Process {
 	return out
 }
 
-func process_killAllGamList() {
-	pl := process_gamList()
-	for _, p := range pl {
-		process_kill(int(p.Pid))
-	}
-}
-
-func process_kill(pid int) {
-	cmd := exec.Command("kill", strconv.Itoa(pid))
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Start()
-	if err == nil {
-		fmt.Printf("Process %d stopped\n", pid)
-	}
-}
-
-func process_killDaemon() {
-	pl := process_list()
-	for _, p := range pl {
-		if p.Name == "gam.exe" && strings.Contains(p.Cmd, "service daemon") {
-			process_kill(int(p.Pid))
+func Kill(input string) {
+	if input == "all" {
+		pl := GamList()
+		for _, p := range pl {
+			cmhp_process.Exec("kill", fmt.Sprintf("%v", p.Pid))
 		}
+		return
 	}
+	b := cmhp_process.Exec("kill", input)
+	core.Exit(b)
 }
