@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/maldan/gam/internal/app/gam/app"
 	"github.com/maldan/gam/internal/app/gam/core"
 	"github.com/maldan/go-cmhp/cmhp_process"
 )
@@ -54,12 +55,26 @@ func List() []core.Process {
 			args[strings.Replace(v2[0], "--", "", 1)] = v2[1]
 		}
 
-		// Process list
-		name := strings.Split(strings.Replace(cmd, core.GamAppDir+"/", "", 1), " ")[0]
-		name = strings.Replace(name, "/app", "", 1)
+		// Get executable folder name
+		exeName := strings.Replace(strings.Split(cmd, " ")[0], "/app", "", 1)
+		tt := strings.Split(exeName, "/")
+		exeName = tt[len(tt)-1]
+
+		// Get other info
+		version := strings.Replace(exeName, app.RemoveVersionFromName(exeName), "", 1)
+		version = strings.Replace(version, "-v", "", 1)
+		author := strings.Split(exeName, "-")[0]
+		name := strings.Replace(app.RemoveVersionFromName(exeName), author+"-gam-app-", "", 1)
+
+		// Set args
+		args["path"] = strings.Replace(strings.Split(cmd, " ")[0], "/app", "", 1)
+		args["version"] = version
+		args["author"] = author
+		args["name"] = name
+
+		// Put to list
 		processList = append(processList, core.Process{
 			Pid:  pid,
-			Name: name,
 			Cmd:  cmd,
 			Args: args,
 		})
@@ -74,9 +89,9 @@ func GamList() []core.Process {
 	pl := List()
 	for _, p := range pl {
 		// Skip if go run process
-		if p.Name == "go.exe" {
+		/*if p.Name == "go.exe" {
 			continue
-		}
+		}*/
 		cmd := strings.ReplaceAll(p.Cmd, "\\", "/")
 		if strings.Contains(cmd, "--appId") && strings.Contains(cmd, "--port") {
 			out = append(out, p)
@@ -88,6 +103,7 @@ func GamList() []core.Process {
 
 // Kill process
 func Kill(input string) {
+	// Kill all
 	if input == "all" {
 		pl := GamList()
 		for _, p := range pl {
@@ -95,6 +111,21 @@ func Kill(input string) {
 		}
 		return
 	}
-	b := cmhp_process.Exec("kill", input)
-	core.Exit(b)
+
+	// Kill by pid
+	_, err := strconv.Atoi(input)
+	if err == nil {
+		b := cmhp_process.Exec("kill", input)
+		core.Exit(b)
+	} else {
+		// Kill by name
+		pl := GamList()
+
+		for _, p := range pl {
+			if p.Args["name"] == strings.Trim(input, " ") {
+				cmhp_process.Exec("kill", fmt.Sprintf("%v", p.Pid))
+			}
+		}
+		core.Exit("")
+	}
 }

@@ -4,11 +4,12 @@ import (
 	"os"
 	"runtime"
 	"strings"
+
+	"github.com/maldan/go-cmhp/cmhp_file"
 )
 
 type Process struct {
 	Pid  int64             `json:"pid"`
-	Name string            `json:"name"`
 	Cmd  string            `json:"cmd"`
 	Args map[string]string `json:"args"`
 }
@@ -18,10 +19,15 @@ type Application struct {
 	Path string `json:"path"`
 }
 
+type Config struct {
+	DefaultHost string
+}
+
 // Global path
 var GamDir string
 var GamAppDir string
 var GamDataDir string
+var GamConfig Config
 
 // Global const
 const CurrentPlatform = runtime.GOOS + "-" + runtime.GOARCH
@@ -40,6 +46,12 @@ func init() {
 	os.MkdirAll(GamDir, 0755)
 	os.MkdirAll(GamAppDir, 0755)
 	os.MkdirAll(GamDataDir, 0755)
+
+	// Load config
+	cmhp_file.ReadJSON(GamDataDir+"/gam/config.json", &GamConfig)
+	if GamConfig.DefaultHost == "" {
+		GamConfig.DefaultHost = "localhost"
+	}
 }
 
 func Exit(msg string) {

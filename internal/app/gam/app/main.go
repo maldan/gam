@@ -110,7 +110,17 @@ func List() {
 
 	// Print list
 	for _, file := range appList {
-		fmt.Println(file.Name)
+		version := strings.Replace(file.Name, RemoveVersionFromName(file.Name), "", 1)
+		version = strings.Replace(version, "-v", "", 1)
+
+		author := strings.Split(file.Name, "-")[0]
+		name := strings.Replace(RemoveVersionFromName(file.Name), author+"-gam-app-", "", 1)
+
+		fmt.Println("Name: " + name)
+		fmt.Println("Author: " + author)
+		fmt.Println("Version: " + version)
+		fmt.Println("Path: " + file.Path)
+		fmt.Println()
 	}
 }
 
@@ -249,6 +259,14 @@ func Run(input string, args []string) {
 		}
 	}
 
+	// Check houst
+	hostFound := false
+	for _, v := range args {
+		if strings.Contains(v, "--host=") {
+			hostFound = true
+		}
+	}
+
 	// Set port
 	if !portFound {
 		// Port
@@ -258,6 +276,11 @@ func Run(input string, args []string) {
 		}
 		args = append(args, fmt.Sprintf("--port=%d", p))
 		port = p
+	}
+
+	// Set host
+	if !hostFound {
+		args = append(args, "--host="+core.GamConfig.DefaultHost)
 	}
 
 	// Add data dir

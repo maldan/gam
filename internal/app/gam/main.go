@@ -1,6 +1,7 @@
 package gam
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,12 +11,22 @@ import (
 	"github.com/maldan/gam/internal/app/gam/app"
 	"github.com/maldan/gam/internal/app/gam/core"
 	"github.com/maldan/gam/internal/app/gam/process"
+	"github.com/maldan/go-cmhp/cmhp_file"
 )
 
 type Command struct {
 	Description string
 	Execute     func(p ...string)
 	Params      int
+}
+
+func SetStructField(s interface{}, field string, value interface{}) {
+	mappo := make(map[string]interface{})
+	bb, _ := json.Marshal(s)
+	json.Unmarshal(bb, &mappo)
+	mappo[field] = value
+	b2, _ := json.Marshal(&mappo)
+	json.Unmarshal(b2, s)
 }
 
 func Start(version string) {
@@ -57,7 +68,8 @@ func Start(version string) {
 				for i := 0; i < v.Params; i++ {
 					fmt.Print(color.YellowString(fmt.Sprintf("$%v", i)) + " ")
 				}
-				fmt.Println("\t - " + v.Description)
+
+				fmt.Println("\n - " + v.Description)
 			}
 		},
 	}
@@ -80,7 +92,7 @@ func Start(version string) {
 	}
 
 	// Delete application
-	commandList["del"] = Command{
+	commandList["delete"] = Command{
 		Params:      1,
 		Description: "Delete application $0",
 		Execute: func(p ...string) {
@@ -94,9 +106,8 @@ func Start(version string) {
 		Execute: func(p ...string) {
 			pl := process.GamList()
 			for _, p := range pl {
-				fmt.Printf("Pid: %v\n", p.Pid)
-				fmt.Printf("Name: %v\n", p.Name)
-				fmt.Printf("Cmd: %v\n", p.Cmd)
+				fmt.Printf("pid: %v\n", p.Pid)
+				fmt.Printf("cmd: %v\n", p.Cmd)
 				for k, v := range p.Args {
 					fmt.Printf("%v: %v\n", k, v)
 				}
@@ -120,6 +131,33 @@ func Start(version string) {
 		Description: "Kill process $0",
 		Execute: func(p ...string) {
 			process.Kill(p[0])
+		},
+	}
+
+	// Kill process
+	commandList["version"] = Command{
+		Description: "Version",
+		Execute: func(p ...string) {
+			fmt.Println(version)
+		},
+	}
+
+	// Print config
+	commandList["pcfg"] = Command{
+		Description: "Print config",
+		Execute: func(p ...string) {
+			fmt.Println("DefaultHost:", core.GamConfig.DefaultHost)
+		},
+	}
+
+	// Set variable
+	commandList["set"] = Command{
+		Params:      2,
+		Description: "Set variable $0 = $1",
+		Execute: func(p ...string) {
+			SetStructField(&core.GamConfig, p[0], p[1])
+			cmhp_file.WriteJSON(core.GamDataDir+"/gam/config.json", &core.GamConfig)
+			commandList["pcfg"].Execute()
 		},
 	}
 
