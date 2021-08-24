@@ -310,7 +310,7 @@ func Run(input string, args []string) {
 		if err != nil {
 			core.Exit(err.Error())
 		} else {
-			fmt.Printf("Pid: %v\nPort: %v\n", pid, port)
+			fmt.Printf("pid: %v\nport: %v\n", pid, port)
 		}
 	} else {
 		core.Exit(err.Error())
