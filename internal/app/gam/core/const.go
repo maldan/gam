@@ -15,8 +15,9 @@ type Process struct {
 }
 
 type Application struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
+	Name    string `json:"name"`
+	Path    string `json:"path"`
+	Version string `json:"version"`
 }
 
 type Config struct {

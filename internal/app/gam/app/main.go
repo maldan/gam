@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -17,6 +18,7 @@ import (
 	"github.com/maldan/go-cmhp/cmhp_process"
 	"github.com/phayes/freeport"
 	"github.com/schollz/progressbar/v3"
+	"golang.org/x/mod/semver"
 )
 
 type Release struct {
@@ -116,12 +118,40 @@ func List() {
 		author := strings.Split(file.Name, "-")[0]
 		name := strings.Replace(RemoveVersionFromName(file.Name), author+"-gam-app-", "", 1)
 
-		fmt.Println("Name: " + name)
-		fmt.Println("Author: " + author)
-		fmt.Println("Version: " + version)
-		fmt.Println("Path: " + file.Path)
+		fmt.Println("name: " + name)
+		fmt.Println("author: " + author)
+		fmt.Println("version: " + version)
+		fmt.Println("path: " + file.Path)
 		fmt.Println()
 	}
+}
+
+func SearchApp(input string) []core.Application {
+	list := make([]core.Application, 0)
+
+	// Files
+	files, _ := cmhp_file.List(core.GamAppDir)
+	for _, file := range files {
+		if !file.IsDir() {
+			continue
+		}
+
+		// Skip
+		if !strings.HasPrefix(file.Name(), input) {
+			continue
+		}
+		list = append(list, core.Application{
+			Name:    file.Name(),
+			Path:    core.GamAppDir + "/" + file.Name(),
+			Version: GetVersionInName(file.Name()),
+		})
+	}
+
+	sort.SliceStable(list, func(i, j int) bool {
+		return semver.Compare(list[i].Version, list[j].Version) == 0
+	})
+
+	return list
 }
 
 // Get asset
@@ -221,6 +251,16 @@ func RemoveVersionFromName(name string) string {
 	return re.ReplaceAllString(name, `$1`)
 }
 
+func HasVersionInName(name string) bool {
+	var re = regexp.MustCompile(`-v\d+\.\d+\.\d+`)
+	return re.Match([]byte(name))
+}
+
+func GetVersionInName(name string) string {
+	var re = regexp.MustCompile(`\d+\.\d+\.\d+`)
+	return re.FindAllString(name, 1)[0]
+}
+
 // Remove app
 func Delete(input string) {
 	// Get app name
@@ -240,6 +280,15 @@ func Delete(input string) {
 func Run(input string, args []string) {
 	// Get app name
 	appName := GetNameFromInput(input)
+
+	// Version not specified
+	if !HasVersionInName(appName) {
+		list := SearchApp(appName)
+		if len(list) == 0 {
+			core.Exit("Application not found")
+		}
+		appName += "-v" + list[0].Version
+	}
 
 	// Check if already exists
 	if !cmhp_file.Exists(core.GamAppDir + "/" + appName) {
@@ -310,7 +359,9 @@ func Run(input string, args []string) {
 		if err != nil {
 			core.Exit(err.Error())
 		} else {
-			fmt.Printf("pid: %v\nport: %v\n", pid, port)
+			fmt.Println("pid:", pid)
+			fmt.Println("port:", port)
+			fmt.Println("path:", core.GamAppDir+"/"+appName)
 		}
 	} else {
 		core.Exit(err.Error())
