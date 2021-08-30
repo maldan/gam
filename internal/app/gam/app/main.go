@@ -33,7 +33,7 @@ type Asset struct {
 	DownloadUrl string `json:"browser_download_url"`
 }
 
-// Install application
+// Install applications
 func Install(input string) {
 	url := GetAssetFromGithub(GetUrlFromInput(input))
 	appName := GetNameFromUrl(url)
