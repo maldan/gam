@@ -10,16 +10,12 @@ import (
 //go:embed package.json
 var packageJson string
 
-var XConfig PackageJson
-
-type PackageJson struct {
+// Package json config
+var Config struct {
 	Version string `json:"version"`
 }
 
-func init() {
-	json.Unmarshal([]byte(packageJson), &XConfig)
-}
-
 func main() {
-	gam.Start(XConfig.Version)
+	json.Unmarshal([]byte(packageJson), &Config)
+	gam.Start(Config.Version)
 }
