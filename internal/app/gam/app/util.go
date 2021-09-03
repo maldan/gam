@@ -28,7 +28,7 @@ type Asset struct {
 	DownloadUrl string `json:"browser_download_url"`
 }
 
-// Download app
+// Download apps
 func Download(url string) string {
 	// Get app name
 	appName := GetNameFromUrl(url)
