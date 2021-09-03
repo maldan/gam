@@ -1,37 +1,23 @@
 package app
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/maldan/gam/internal/app/gam/core"
+	"github.com/maldan/go-cmhp/cmhp_crypto"
 	"github.com/maldan/go-cmhp/cmhp_file"
-	"github.com/maldan/go-cmhp/cmhp_net"
 	"github.com/maldan/go-cmhp/cmhp_process"
+	"github.com/maldan/go-cmhp/cmhp_s3"
+	"github.com/maldan/go-cmhp/cmhp_time"
 	"github.com/phayes/freeport"
-	"github.com/schollz/progressbar/v3"
-	"golang.org/x/mod/semver"
 )
-
-type Release struct {
-	Url     string  `json:"url"`
-	TagName string  `json:"tag_name"`
-	Assets  []Asset `json:"assets"`
-}
-
-type Asset struct {
-	Name        string `json:"name"`
-	Url         string `json:"url"`
-	DownloadUrl string `json:"browser_download_url"`
-}
 
 // Install applications
 func Install(input string) {
@@ -54,226 +40,6 @@ func Install(input string) {
 	if err != nil {
 		core.Exit(err.Error())
 	}
-}
-
-// Download app
-func Download(url string) string {
-	// Get app name
-	appName := GetNameFromUrl(url)
-
-	// Open file
-	f, err := os.OpenFile(os.TempDir()+"/"+appName+".zip", os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		core.Exit(err.Error())
-	}
-	defer f.Close()
-
-	// Create request
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		core.Exit(err.Error())
-	}
-
-	// Do request
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		core.Exit(err.Error())
-	}
-	defer resp.Body.Close()
-
-	// Draw progress bar
-	bar := progressbar.DefaultBytes(
-		resp.ContentLength,
-		"downloading",
-	)
-	io.Copy(io.MultiWriter(f, bar), resp.Body)
-
-	return os.TempDir() + "/" + appName + ".zip"
-}
-
-// Show application list
-func List() {
-	// App list
-	appList := make([]core.Application, 0)
-
-	// Files
-	files, _ := cmhp_file.List(core.GamAppDir)
-	for _, file := range files {
-		if !file.IsDir() {
-			continue
-		}
-
-		// Add application to list
-		appList = append(appList, core.Application{
-			Name: file.Name(),
-			Path: fmt.Sprintf("%v/%v", core.GamAppDir, file.Name()),
-		})
-	}
-
-	// Print list
-	for _, file := range appList {
-		version := strings.Replace(file.Name, RemoveVersionFromName(file.Name), "", 1)
-		version = strings.Replace(version, "-v", "", 1)
-
-		author := strings.Split(file.Name, "-")[0]
-		name := strings.Replace(RemoveVersionFromName(file.Name), author+"-gam-app-", "", 1)
-
-		fmt.Println("name: " + name)
-		fmt.Println("author: " + author)
-		fmt.Println("version: " + version)
-		fmt.Println("path: " + file.Path)
-		fmt.Println()
-	}
-}
-
-func SearchApp(input string) []core.Application {
-	list := make([]core.Application, 0)
-
-	// Files
-	files, _ := cmhp_file.List(core.GamAppDir)
-	for _, file := range files {
-		if !file.IsDir() {
-			continue
-		}
-
-		// Skip
-		if !strings.HasPrefix(file.Name(), input) {
-			continue
-		}
-		list = append(list, core.Application{
-			Name:    file.Name(),
-			Path:    core.GamAppDir + "/" + file.Name(),
-			Version: GetVersionInName(file.Name()),
-		})
-	}
-
-	sort.SliceStable(list, func(i, j int) bool {
-		return semver.Compare(list[i].Version, list[j].Version) == 0
-	})
-
-	return list
-}
-
-// Get asset
-func GetAssetFromGithub(url string) string {
-	// Get version
-	tuple := strings.Split(url, "@")
-	version := ""
-	if len(tuple) == 2 {
-		version = tuple[1]
-	}
-
-	// Request
-	response := cmhp_net.Request(cmhp_net.HttpArgs{
-		Url: tuple[0],
-	})
-
-	// Check error
-	if response.StatusCode != 200 {
-		core.Exit("Url " + url + " not found")
-	}
-
-	// Parse release list
-	var releaseList []Release
-	json.Unmarshal(response.Body, &releaseList)
-
-	// No releases
-	if len(releaseList) == 0 {
-		core.Exit("There is no releases")
-	}
-
-	// Set default version
-	if version == "" {
-		version = releaseList[0].TagName
-	}
-
-	// Get releases
-	for _, release := range releaseList {
-		// Check version
-		if release.TagName == version {
-			// Find asset for current platform
-			for _, asset := range release.Assets {
-				if asset.Name == "application-"+core.CurrentPlatform+".zip" {
-					return asset.DownloadUrl
-				}
-			}
-		}
-	}
-
-	// Release not found
-	core.Exit("No release for current platform: " + core.CurrentPlatform)
-	return ""
-}
-
-// Create url from user input
-func GetUrlFromInput(input string) string {
-	// Parse name
-	tuple := strings.Split(input, "/")
-
-	// Default author is maldan
-	if len(tuple) == 1 {
-		v := strings.Split(tuple[0], "@")
-		if len(v) == 2 {
-			return "https://api.github.com/repos/maldan/gam-app-" + v[0] + "/releases@v" + v[1]
-		}
-		return "https://api.github.com/repos/maldan/gam-app-" + v[0] + "/releases"
-	}
-
-	// With author
-	v := strings.Split(tuple[1], "@")
-	if len(v) == 2 {
-		return "https://api.github.com/repos/" + tuple[0] + "/gam-app-" + v[0] + "/releases@v" + v[1]
-	}
-	return "https://api.github.com/repos/" + tuple[0] + "/gam-app-" + tuple[1] + "/releases"
-}
-
-// Get name from url
-func GetNameFromUrl(url string) string {
-	first := strings.Replace(url, "https://github.com/", "", 1)
-	first = strings.Replace(first, "releases/download", "", 1)
-
-	u := strings.Split(first, "/")
-	return strings.Join(u[0:2], "-") + "-" + u[3]
-}
-
-// Create app name from user input
-func GetNameFromInput(input string) string {
-	input = strings.Replace(input, "@", "-v", 1)
-	tuple := strings.Split(input, "/")
-	if len(tuple) == 1 {
-		return "maldan-gam-app-" + tuple[0]
-	}
-	return tuple[0] + "-gam-app-" + tuple[1]
-}
-
-func RemoveVersionFromName(name string) string {
-	var re = regexp.MustCompile(`-v\d+\.\d+\.\d+`)
-	return re.ReplaceAllString(name, `$1`)
-}
-
-func HasVersionInName(name string) bool {
-	var re = regexp.MustCompile(`-v\d+\.\d+\.\d+`)
-	return re.Match([]byte(name))
-}
-
-func GetVersionInName(name string) string {
-	var re = regexp.MustCompile(`\d+\.\d+\.\d+`)
-	return re.FindAllString(name, 1)[0]
-}
-
-// Remove app
-func Delete(input string) {
-	// Get app name
-	appName := GetNameFromInput(input)
-
-	// Check if already exists
-	if !cmhp_file.Exists(core.GamAppDir + "/" + appName) {
-		core.Exit("Application not found: " + appName)
-	}
-
-	// Delete app dir
-	cmhp_file.DeleteDir(core.GamAppDir + "/" + appName)
-	fmt.Println("Application deleted: " + appName)
 }
 
 // Run app
@@ -365,5 +131,118 @@ func Run(input string, args []string) {
 		}
 	} else {
 		core.Exit(err.Error())
+	}
+}
+
+// Show application list
+func List() {
+	// App list
+	appList := make([]core.Application, 0)
+
+	// Files
+	files, _ := cmhp_file.List(core.GamAppDir)
+	for _, file := range files {
+		if !file.IsDir() {
+			continue
+		}
+
+		// Add application to list
+		appList = append(appList, core.Application{
+			Name: file.Name(),
+			Path: fmt.Sprintf("%v/%v", core.GamAppDir, file.Name()),
+		})
+	}
+
+	// Print list
+	for _, file := range appList {
+		version := strings.Replace(file.Name, RemoveVersionFromName(file.Name), "", 1)
+		version = strings.Replace(version, "-v", "", 1)
+
+		author := strings.Split(file.Name, "-")[0]
+		name := strings.Replace(RemoveVersionFromName(file.Name), author+"-gam-app-", "", 1)
+
+		fmt.Println("name: " + name)
+		fmt.Println("author: " + author)
+		fmt.Println("version: " + version)
+		fmt.Println("path: " + file.Path)
+		fmt.Println()
+	}
+}
+
+// Remove app
+func Delete(input string) {
+	// Get app name
+	appName := GetNameFromInput(input)
+
+	// Check if already exists
+	if !cmhp_file.Exists(core.GamAppDir + "/" + appName) {
+		core.Exit("Application not found: " + appName)
+	}
+
+	// Delete app dir
+	cmhp_file.DeleteDir(core.GamAppDir + "/" + appName)
+	fmt.Println("Application deleted: " + appName)
+}
+
+// Backup data
+func Backup(input string) {
+	// Get app name
+	appName := RemoveVersionFromName(GetNameFromInput(input))
+
+	// Check if data exists
+	if !cmhp_file.Exists(core.GamDataDir + "/" + appName) {
+		core.Exit("Data not found")
+	}
+
+	// Init config
+	cmhp_s3.Start(core.GamDataDir + "/gam/config.json")
+
+	// Zip app data
+	zipFile := os.TempDir() + "/" + cmhp_crypto.UID(10) + ".zip"
+	p, _ := cmhp_process.Create("zip", "-9", "-r", zipFile, ".", "-i", "*")
+	p.Dir = core.GamDataDir + "/" + appName
+	p.Run()
+	defer cmhp_file.Delete(zipFile)
+
+	// Get zip file
+	zipData, err := cmhp_file.ReadBin(zipFile)
+	if err != nil {
+		core.Exit(err.Error())
+	}
+
+	// Upload
+	zipHash, _ := cmhp_file.HashMd5(zipFile)
+	url, err := cmhp_s3.Write(cmhp_s3.WriteArgs{
+		Path:        "backup/gam-data/" + appName + "/" + cmhp_time.Format(time.Now(), "YYYY-MM-DD") + "_" + zipHash[0:8] + ".zip",
+		InputData:   zipData,
+		Visibility:  "public-read",
+		ContentType: "application/zip",
+	})
+	if err != nil {
+		core.Exit(err.Error())
+	}
+	fmt.Println("Uploaded to", url)
+}
+
+// Print backup list
+func BackupList(input string) {
+	// Init config
+	cmhp_s3.Start(core.GamDataDir + "/gam/config.json")
+
+	// Get app name
+	appName := RemoveVersionFromName(GetNameFromInput(input))
+	files := cmhp_s3.List("backup/gam-data/" + appName)
+	sort.SliceStable(files, func(i, j int) bool {
+		return files[i].LastModified.Unix() < files[j].LastModified.Unix()
+	})
+	for _, file := range files {
+		fileName := strings.Replace(file.Path, "backup/gam-data/"+appName+"/", "", 1)
+		if fileName == "" {
+			continue
+		}
+		fmt.Println("file:", fileName)
+		fmt.Println("size:", humanize.Bytes(uint64(file.Size)))
+		fmt.Println("lastModified:", cmhp_time.Format(file.LastModified, "YYYY-MM-DD HH:mm:ss"))
+		fmt.Println()
 	}
 }

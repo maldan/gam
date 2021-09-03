@@ -22,6 +22,11 @@ type Application struct {
 
 type Config struct {
 	DefaultHost string
+
+	SPACES_KEY      string `json:"SPACES_KEY"`
+	SPACES_SECRET   string `json:"SPACES_SECRET"`
+	SPACES_ENDPOINT string `json:"SPACES_ENDPOINT"`
+	SPACES_BUCKET   string `json:"SPACES_BUCKET"`
 }
 
 // Global path
