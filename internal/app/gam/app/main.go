@@ -246,3 +246,40 @@ func BackupList(input string) {
 		fmt.Println()
 	}
 }
+
+// Exec command
+func Execute(input string, args []string) {
+	// Get app name
+	appName := GetNameFromInput(input)
+
+	// Version not specified
+	if !HasVersionInName(appName) {
+		list := SearchApp(appName)
+		if len(list) == 0 {
+			core.Exit("Application not found")
+		}
+		appName += "-v" + list[0].Version
+	}
+
+	// Check if already exists
+	if !cmhp_file.Exists(core.GamAppDir + "/" + appName) {
+		Install(input)
+	}
+
+	// Run process
+	argsFinal := []string{core.GamAppDir + "/" + appName + "/app", "--cmd=" + strings.Join(args, " ")}
+	process, err := os.StartProcess(core.GamAppDir+"/"+appName+"/app", argsFinal, &os.ProcAttr{
+		Dir: core.GamAppDir + "/" + appName,
+		Env: os.Environ(),
+		Files: []*os.File{
+			os.Stdin,
+			os.Stdout,
+			os.Stderr,
+		},
+		Sys: &syscall.SysProcAttr{},
+	})
+	if err != nil {
+		core.Exit(err.Error())
+	}
+	process.Release()
+}

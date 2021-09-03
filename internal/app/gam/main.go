@@ -170,6 +170,15 @@ func Start(version string) {
 		},
 	}
 
+	// Backup list
+	commandList["exec"] = Command{
+		Params:      1,
+		Description: "Execute for $0 command $1...",
+		Execute: func(p ...string) {
+			app.Execute(p[0], p[1:])
+		},
+	}
+
 	// Set variable
 	commandList["set"] = Command{
 		Params:      2,
