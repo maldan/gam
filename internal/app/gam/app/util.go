@@ -74,7 +74,7 @@ func SearchApp(input string) []core.Application {
 		}
 
 		// Skip
-		if !strings.HasPrefix(file.Name(), input) {
+		if !strings.HasPrefix(file.Name(), input+"-") {
 			continue
 		}
 		list = append(list, core.Application{

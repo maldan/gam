@@ -13,6 +13,7 @@ import (
 	"github.com/maldan/gam/internal/app/gam/core"
 	"github.com/maldan/go-cmhp/cmhp_crypto"
 	"github.com/maldan/go-cmhp/cmhp_file"
+	"github.com/maldan/go-cmhp/cmhp_net"
 	"github.com/maldan/go-cmhp/cmhp_process"
 	"github.com/maldan/go-cmhp/cmhp_s3"
 	"github.com/maldan/go-cmhp/cmhp_time"
@@ -243,6 +244,69 @@ func BackupList(input string) {
 		fmt.Println("file:", fileName)
 		fmt.Println("size:", humanize.Bytes(uint64(file.Size)))
 		fmt.Println("lastModified:", cmhp_time.Format(file.LastModified, "YYYY-MM-DD HH:mm:ss"))
+		fmt.Println()
+	}
+}
+
+func ShowRepoList(input string) {
+	// Load repo list
+	list := make([]string, 0)
+	cmhp_file.ReadJSON("repo.json", &list)
+
+	// Load cache
+	cache := make([]core.RepoApplication, 0)
+	cmhp_file.ReadJSON(core.GamDataDir+"/gam/repo.cache.json", &cache)
+
+	// https://raw.githubusercontent.com/maldan/gam-app-fileman/main/icon.svg
+
+	// Go over list
+	for _, v := range list {
+		tuple := strings.Split(strings.Replace(v, "https://github.com/", "", 1), "/")
+		author := tuple[0]
+		appName := strings.Replace(tuple[1], "gam-app-", "", 1)
+
+		// Search in cache
+		isFound := false
+		for _, vv := range cache {
+			if vv.Name == appName && vv.Author == author {
+				isFound = true
+				break
+			}
+		}
+
+		// Not found
+		if !isFound {
+			// Get info about repo
+			jj := make(map[string]interface{})
+			cmhp_net.Request(cmhp_net.HttpArgs{
+				Url:        "https://api.github.com/repos/" + author + "/gam-app-" + appName,
+				Method:     "GET",
+				OutputJSON: &jj,
+			})
+
+			// Create app
+			tt := strings.Replace(jj["updated_at"].(string), "Z", "", 1)
+			tt = strings.Replace(tt, "T", " ", 1)
+			updatedAt, _ := time.Parse("2006-01-02 15:04:05", tt)
+			repoApp := core.RepoApplication{
+				Name:        appName,
+				Description: jj["description"].(string),
+				Rating:      int(jj["stargazers_count"].(float64)),
+				Author:      author,
+				LastUpdate:  updatedAt,
+			}
+			cache = append(cache, repoApp)
+		}
+	}
+
+	// Save file
+	cmhp_file.WriteJSON(core.GamDataDir+"/gam/repo.cache.json", &cache)
+	for _, v := range cache {
+		fmt.Println("name:", v.Name)
+		fmt.Println("description:", v.Description)
+		fmt.Println("author:", v.Author)
+		fmt.Println("rating:", v.Rating)
+		fmt.Println("update:", cmhp_time.Format(v.LastUpdate, "YYYY-MM-DD HH:mm:ss"))
 		fmt.Println()
 	}
 }

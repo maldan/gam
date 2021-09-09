@@ -170,12 +170,25 @@ func Start(version string) {
 		},
 	}
 
-	// Backup list
+	// Execute command
 	commandList["exec"] = Command{
 		Params:      1,
 		Description: "Execute for $0 command $1...",
 		Execute: func(p ...string) {
 			app.Execute(p[0], p[1:])
+		},
+	}
+
+	// Execute command
+	commandList["rl"] = Command{
+		// Params:      1,
+		Description: "Repo list with filter $0",
+		Execute: func(p ...string) {
+			if len(p) > 0 {
+				app.ShowRepoList(p[0])
+			} else {
+				app.ShowRepoList("")
+			}
 		},
 	}
 
