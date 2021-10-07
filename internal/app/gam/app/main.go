@@ -18,6 +18,7 @@ import (
 	"github.com/maldan/go-cmhp/cmhp_s3"
 	"github.com/maldan/go-cmhp/cmhp_time"
 	"github.com/phayes/freeport"
+	"golang.org/x/mod/semver"
 )
 
 // Install applications
@@ -41,6 +42,48 @@ func Install(input string) {
 	if err != nil {
 		core.Exit(err.Error())
 	}
+}
+
+// Upgrade gam to new version
+func UpgradeGam(currentVersion string) {
+	url := GetAssetFromGithub("https://api.github.com/repos/maldan/gam/releases")
+	version := strings.Split(strings.Replace(url, "https://github.com/maldan/gam/releases/download/v", "", 1), "/")[0]
+	fmt.Println(url)
+	// Check version
+	if semver.Compare("v"+version, "v"+currentVersion) <= 0 {
+		core.Exit("You already have last version")
+	}
+
+	// Download archive
+	zipPath := Download(url)
+	cmhp_process.Exec("unzip", zipPath, "-d", os.TempDir()+"/gam_"+version)
+
+	// Create upgrade script
+	cmhp_file.WriteText(core.GamDir+"/upgrade.sh", fmt.Sprintf("#!/bin/bash\nsleep 1\nrm ./gam\ncp -r %v/. %v/", os.TempDir()+"/gam_"+version, core.GamDir))
+	os.Chmod(core.GamDir+"/upgrade.sh", 0777)
+
+	// Start upgrader
+	process, err := os.StartProcess(core.GamDir+"/upgrade.sh", nil, &os.ProcAttr{
+		Dir: core.GamDir,
+		Env: os.Environ(),
+		Files: []*os.File{
+			nil,
+			nil,
+			nil,
+		},
+		Sys: &syscall.SysProcAttr{},
+	})
+	if err != nil {
+		core.Exit(err.Error())
+	}
+
+	// Release process
+	err = process.Release()
+	if err != nil {
+		core.Exit(err.Error())
+	}
+
+	fmt.Println("Upgraded to", version)
 }
 
 // Run app

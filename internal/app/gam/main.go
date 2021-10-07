@@ -203,6 +203,15 @@ func Start(version string) {
 		},
 	}
 
+	// Upgrade
+	commandList["upgrade"] = Command{
+		Params:      0,
+		Description: "Upgrade gam to new version",
+		Execute: func(p ...string) {
+			app.UpgradeGam(version)
+		},
+	}
+
 	// Check command
 	if _, ok := commandList[os.Args[1]]; !ok {
 		core.Exit("Unknown command: " + os.Args[1])
