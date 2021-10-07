@@ -4,6 +4,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/maldan/go-cmhp/cmhp_file"
 )
@@ -20,8 +21,21 @@ type Application struct {
 	Version string `json:"version"`
 }
 
+type RepoApplication struct {
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Author      string    `json:"author"`
+	Rating      int       `json:"rating"`
+	LastUpdate  time.Time `json:"lastUpdate"`
+}
+
 type Config struct {
 	DefaultHost string
+
+	SPACES_KEY      string `json:"SPACES_KEY"`
+	SPACES_SECRET   string `json:"SPACES_SECRET"`
+	SPACES_ENDPOINT string `json:"SPACES_ENDPOINT"`
+	SPACES_BUCKET   string `json:"SPACES_BUCKET"`
 }
 
 // Global path

@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/fatih/color"
+	"github.com/k0kubun/pp"
 	"github.com/maldan/gam/internal/app/gam/app"
 	"github.com/maldan/gam/internal/app/gam/core"
 	"github.com/maldan/gam/internal/app/gam/process"
@@ -75,7 +76,7 @@ func Start(version string) {
 	}
 
 	// Install app
-	commandList["i"] = Command{
+	commandList["install"] = Command{
 		Params:      1,
 		Description: "Install app from $0",
 		Execute: func(p ...string) {
@@ -136,7 +137,7 @@ func Start(version string) {
 
 	// Kill process
 	commandList["version"] = Command{
-		Description: "Version",
+		Description: "Print version",
 		Execute: func(p ...string) {
 			fmt.Println(version)
 		},
@@ -146,7 +147,48 @@ func Start(version string) {
 	commandList["pcfg"] = Command{
 		Description: "Print config",
 		Execute: func(p ...string) {
-			fmt.Println("DefaultHost:", core.GamConfig.DefaultHost)
+			pp.Println(core.GamConfig)
+			//fmt.Println("DefaultHost:", core.GamConfig.DefaultHost)
+		},
+	}
+
+	// Backup
+	commandList["backup"] = Command{
+		Params:      1,
+		Description: "Backup $0 data",
+		Execute: func(p ...string) {
+			app.Backup(p[0])
+		},
+	}
+
+	// Backup list
+	commandList["bl"] = Command{
+		Params:      1,
+		Description: "Backup list for $0",
+		Execute: func(p ...string) {
+			app.BackupList(p[0])
+		},
+	}
+
+	// Execute command
+	commandList["exec"] = Command{
+		Params:      1,
+		Description: "Execute for $0 command $1...",
+		Execute: func(p ...string) {
+			app.Execute(p[0], p[1:])
+		},
+	}
+
+	// Execute command
+	commandList["rl"] = Command{
+		// Params:      1,
+		Description: "Repo list with filter $0",
+		Execute: func(p ...string) {
+			if len(p) > 0 {
+				app.ShowRepoList(p[0])
+			} else {
+				app.ShowRepoList("")
+			}
 		},
 	}
 
