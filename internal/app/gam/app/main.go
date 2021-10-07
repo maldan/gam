@@ -129,6 +129,7 @@ func Run(input string, args []string) {
 			fmt.Println("pid:", pid)
 			fmt.Println("port:", port)
 			fmt.Println("path:", core.GamAppDir+"/"+appName)
+			fmt.Println("appId:", RemoveVersionFromName(appName))
 		}
 	} else {
 		core.Exit(err.Error())
@@ -243,7 +244,7 @@ func BackupList(input string) {
 		}
 		fmt.Println("file:", fileName)
 		fmt.Println("size:", humanize.Bytes(uint64(file.Size)))
-		fmt.Println("lastModified:", cmhp_time.Format(file.LastModified, "YYYY-MM-DD HH:mm:ss"))
+		fmt.Println("created:", cmhp_time.Format(file.LastModified, "YYYY-MM-DD HH:mm:ss"))
 		fmt.Println()
 	}
 }
