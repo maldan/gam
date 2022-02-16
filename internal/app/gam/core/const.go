@@ -29,6 +29,12 @@ type RepoApplication struct {
 	LastUpdate  time.Time `json:"lastUpdate"`
 }
 
+type BackupDirConfig struct {
+	ExcludeAnyDir   []string `json:"excludeAnyDir"`
+	ExcludeDirRegex []string `json:"excludeDirRegex"`
+	DestinationZip  string   `json:"destinationZip"`
+}
+
 type Config struct {
 	DefaultHost string
 

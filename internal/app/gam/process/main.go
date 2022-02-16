@@ -115,7 +115,7 @@ func Kill(input string) {
 	// Kill by pid
 	_, err := strconv.Atoi(input)
 	if err == nil {
-		b := cmhp_process.Exec("kill", input)
+		b, _ := cmhp_process.Exec("kill", input)
 		core.Exit(b)
 	} else {
 		// Kill by name

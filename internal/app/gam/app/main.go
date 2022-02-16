@@ -2,7 +2,10 @@ package app
 
 import (
 	"fmt"
+	"github.com/maldan/go-cmhp/cmhp_slice"
 	"os"
+	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -59,7 +62,7 @@ func UpgradeGam(currentVersion string) {
 	cmhp_process.Exec("unzip", zipPath, "-d", os.TempDir()+"/gam_"+version)
 
 	// Create upgrade script
-	cmhp_file.WriteText(core.GamDir+"/upgrade.sh", fmt.Sprintf("#!/bin/bash\nsleep 1\nrm ./gam\ncp -r %v/. %v/", os.TempDir()+"/gam_"+version, core.GamDir))
+	cmhp_file.Write(core.GamDir+"/upgrade.sh", fmt.Sprintf("#!/bin/bash\nsleep 1\nrm ./gam\ncp -r %v/. %v/", os.TempDir()+"/gam_"+version, core.GamDir))
 	os.Chmod(core.GamDir+"/upgrade.sh", 0777)
 
 	// Start upgrader
@@ -344,7 +347,7 @@ func ShowRepoList(input string) {
 	}
 
 	// Save file
-	cmhp_file.WriteJSON(core.GamDataDir+"/gam/repo.cache.json", &cache)
+	cmhp_file.Write(core.GamDataDir+"/gam/repo.cache.json", &cache)
 	for _, v := range cache {
 		fmt.Println("name:", v.Name)
 		fmt.Println("description:", v.Description)
@@ -390,4 +393,84 @@ func Execute(input string, args []string) {
 		core.Exit(err.Error())
 	}
 	process.Release()
+}
+
+var outFiles = make([]string, 0)
+
+func RecursiveDirScan(dir string, config core.BackupDirConfig) {
+	// Get files
+	files, err := cmhp_file.List(dir)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	}
+
+	// Go through files
+	for _, file := range files {
+		fullPath := fmt.Sprintf("%v/%v", dir, file.Name())
+		fullPath = strings.Replace(fullPath, "./", "", 1)
+
+		if file.IsDir() {
+			// fmt.Printf("%v\n", fullPath)
+
+			// Check concrete
+			isSkip := false
+			for _, exDir := range config.ExcludeDirRegex {
+				match, _ := regexp.MatchString(exDir, fullPath)
+				if match {
+					isSkip = true
+					continue
+				}
+			}
+			if isSkip {
+				continue
+			}
+
+			// Check any
+			if cmhp_slice.Includes(config.ExcludeAnyDir, file.Name()) {
+				continue
+			}
+
+			RecursiveDirScan(fmt.Sprintf("%v/%v", dir, file.Name()), config)
+			continue
+		}
+
+		// fmt.Printf("%v\n", fullPath)
+		outFiles = append(outFiles, fullPath)
+	}
+}
+
+func BackupDirectory(dir string) {
+	config := core.BackupDirConfig{}
+	err := cmhp_file.ReadJSON(dir+"/.gambc.json", &config)
+	if err != nil {
+		core.Exit(err.Error())
+	}
+
+	outFiles = make([]string, 0)
+	RecursiveDirScan(dir, config)
+
+	tempFolder := fmt.Sprintf("%v/backup_%v", os.TempDir(), cmhp_crypto.UID(10))
+	os.Mkdir(tempFolder, 0777)
+	defer cmhp_file.DeleteDir(tempFolder)
+
+	fmt.Printf("Folder %v\n", tempFolder)
+
+	for _, file := range outFiles {
+		// fmt.Printf("%v\n", file)
+		err = cmhp_file.Copy(file, tempFolder+"/"+file)
+	}
+
+	destination := strings.ReplaceAll(config.DestinationZip, "%DATE%", cmhp_time.Format(time.Now(), "YYYY-MM-DD"))
+
+	if runtime.GOOS == "windows" {
+		p, _ := cmhp_process.Create("tar.exe", "-a", "-c", "-f", destination, "*")
+		p.Dir = tempFolder
+		p.Run()
+	} else {
+		p, _ := cmhp_process.Create("zip", "-9", "-r", destination, ".", "-i", "*")
+		p.Dir = tempFolder
+		p.Run()
+	}
+
+	fmt.Printf("Done %v\n", destination)
 }

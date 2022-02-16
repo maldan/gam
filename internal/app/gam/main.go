@@ -161,6 +161,15 @@ func Start(version string) {
 		},
 	}
 
+	// Backup
+	commandList["backup_dir"] = Command{
+		Params:      1,
+		Description: "Backup $0 directory",
+		Execute: func(p ...string) {
+			app.BackupDirectory(p[0])
+		},
+	}
+
 	// Backup list
 	commandList["bl"] = Command{
 		Params:      1,
@@ -198,7 +207,7 @@ func Start(version string) {
 		Description: "Set variable $0 = $1",
 		Execute: func(p ...string) {
 			SetStructField(&core.GamConfig, p[0], p[1])
-			cmhp_file.WriteJSON(core.GamDataDir+"/gam/config.json", &core.GamConfig)
+			cmhp_file.Write(core.GamDataDir+"/gam/config.json", &core.GamConfig)
 			commandList["pcfg"].Execute()
 		},
 	}
