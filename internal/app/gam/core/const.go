@@ -33,6 +33,7 @@ type BackupDirConfig struct {
 	ExcludeAnyDir   []string `json:"excludeAnyDir"`
 	ExcludeDirRegex []string `json:"excludeDirRegex"`
 	DestinationZip  string   `json:"destinationZip"`
+	SeparateFolder  bool     `json:"separateFolder"`
 }
 
 type Config struct {

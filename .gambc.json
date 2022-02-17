@@ -1,6 +1,6 @@
 {
     "excludeAnyDir": [".git"],
     "excludeDirRegex": ["^.*/inspectionProfiles", "^internal/app/gam/process"],
-
-    "destinationZip": "D:/google_drive/backup/gam_%DATE%.zip"
+    "destinationZip": "I:/My Drive/backup/go/gam/%TOP_FOLDER%_%DATE%.zip",
+    "separateFolder": true
 }

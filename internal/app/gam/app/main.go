@@ -3,7 +3,9 @@ package app
 import (
 	"fmt"
 	"github.com/maldan/go-cmhp/cmhp_slice"
+	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
@@ -439,6 +441,50 @@ func RecursiveDirScan(dir string, config core.BackupDirConfig) {
 	}
 }
 
+func realBackupDirectory(dir string, config core.BackupDirConfig, topDir string) {
+	outFiles = make([]string, 0)
+	RecursiveDirScan(dir, config)
+
+	tempFolder := fmt.Sprintf("%v/backup_%v", os.TempDir(), cmhp_crypto.UID(10))
+	os.MkdirAll(tempFolder, 0777)
+	defer cmhp_file.DeleteDir(tempFolder)
+
+	fmt.Printf("Folder %v\n", tempFolder)
+
+	for _, file := range outFiles {
+		// fmt.Printf("%v\n", file)
+		err := cmhp_file.Copy(file, tempFolder+"/"+file)
+		if err != nil {
+			fmt.Printf("%v\n", err)
+		}
+	}
+
+	destination := strings.ReplaceAll(config.DestinationZip, "%DATE%", cmhp_time.Format(time.Now(), "YYYY-MM-DD"))
+	destination = strings.ReplaceAll(destination, "%TOP_FOLDER%", topDir)
+
+	os.MkdirAll(filepath.Dir(destination), 0777)
+
+	if runtime.GOOS == "windows" {
+		p, _ := cmhp_process.Create("tar.exe", "-a", "-c", "-f", destination, "*")
+		p.Dir = tempFolder
+		err := p.Run()
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			return
+		}
+	} else {
+		p, _ := cmhp_process.Create("zip", "-9", "-r", destination, ".", "-i", "*")
+		p.Dir = tempFolder
+		err := p.Run()
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			return
+		}
+	}
+
+	fmt.Printf("Done %v\n", destination)
+}
+
 func BackupDirectory(dir string) {
 	config := core.BackupDirConfig{}
 	err := cmhp_file.ReadJSON(dir+"/.gambc.json", &config)
@@ -446,31 +492,33 @@ func BackupDirectory(dir string) {
 		core.Exit(err.Error())
 	}
 
-	outFiles = make([]string, 0)
-	RecursiveDirScan(dir, config)
-
-	tempFolder := fmt.Sprintf("%v/backup_%v", os.TempDir(), cmhp_crypto.UID(10))
-	os.Mkdir(tempFolder, 0777)
-	defer cmhp_file.DeleteDir(tempFolder)
-
-	fmt.Printf("Folder %v\n", tempFolder)
-
-	for _, file := range outFiles {
-		// fmt.Printf("%v\n", file)
-		err = cmhp_file.Copy(file, tempFolder+"/"+file)
+	// If separated folders
+	if config.SeparateFolder {
+		topList, _ := cmhp_file.List(dir)
+		for _, t := range topList {
+			if t.IsDir() {
+				realBackupDirectory(dir+"/"+t.Name(), config, t.Name())
+			}
+		}
+		return
 	}
 
-	destination := strings.ReplaceAll(config.DestinationZip, "%DATE%", cmhp_time.Format(time.Now(), "YYYY-MM-DD"))
+	realBackupDirectory(dir, config, dir)
+}
 
-	if runtime.GOOS == "windows" {
-		p, _ := cmhp_process.Create("tar.exe", "-a", "-c", "-f", destination, "*")
-		p.Dir = tempFolder
-		p.Run()
-	} else {
-		p, _ := cmhp_process.Create("zip", "-9", "-r", destination, ".", "-i", "*")
-		p.Dir = tempFolder
-		p.Run()
+func BackupDirectorySchedule() {
+	list := make([]string, 0)
+	err := cmhp_file.ReadJSON(".gambcsch.json", &list)
+	if err != nil {
+		core.Exit(err.Error())
 	}
 
-	fmt.Printf("Done %v\n", destination)
+	for _, dir := range list {
+		err := os.Chdir(dir)
+		if err != nil {
+			core.Exit(err.Error())
+		}
+		log.Println("Changed dir to: " + dir)
+		BackupDirectory(".")
+	}
 }

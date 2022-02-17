@@ -170,6 +170,15 @@ func Start(version string) {
 		},
 	}
 
+	// Backup schedule
+	commandList["backup_dir_schedule"] = Command{
+		Params:      0,
+		Description: "Backup directories from schedule",
+		Execute: func(p ...string) {
+			app.BackupDirectorySchedule()
+		},
+	}
+
 	// Backup list
 	commandList["bl"] = Command{
 		Params:      1,
